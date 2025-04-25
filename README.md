@@ -6,11 +6,11 @@ Example Usage:
 local ParticleEmitter = require(...)
 local emitter = ParticleEmitter.new()
 
-emitter.Color = Color3.new(1, 1, 1) -- colorsequence supported
-emitter.Size = 32 -- numbersequence supported
+emitter.Color = Color3.new(1, 1, 1) -- ColorSequence supported
+emitter.Size = 32 -- NumberSequence supported
 emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-emitter.Transparency = 0 -- numbersequence supported
-emitter.ZOffset = 1
+emitter.Transparency = 0 -- NumberSequence supported
+emitter.ZOffset = 1 -- zindex of the particle image labels
 emitter.EmissionDirection = "Top"
 emitter.Enabled = true
 emitter.Lifetime = NumberRange.new(5, 10)
