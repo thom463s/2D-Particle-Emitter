@@ -6,10 +6,10 @@ Example Usage:
 local ParticleEmitter = require(...)
 local emitter = ParticleEmitter.new()
 
-emitter.Color = Color3.new(1, 1, 1)
-emitter.Size = 32
+emitter.Color = Color3.new(1, 1, 1) -- colorsequence supported
+emitter.Size = 32 -- numbersequence supported
 emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-emitter.Transparency = 0
+emitter.Transparency = 0 -- numbersequence supported
 emitter.ZOffset = 1
 emitter.EmissionDirection = "Top"
 emitter.Enabled = true
@@ -20,6 +20,7 @@ emitter.RotSpeed = 0
 emitter.Speed = 25
 emitter.SpreadAngle = 0
 
+emitter.Parent = script.Parent -- where the image labels should be parented to 
 emitter:Emit(25)
 ```
 
