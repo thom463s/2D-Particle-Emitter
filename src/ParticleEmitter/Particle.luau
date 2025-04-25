@@ -1,5 +1,5 @@
 -- @Author: thom463s
--- @Edited: 4/25/2025 @ 5:23 PM
+-- @Edited: 4/25/2025 @ 8:13 PM
 
 --------------------------------------------------------------------------------------------------
 -- Dependencies
@@ -84,6 +84,22 @@ local function evalNumberSequence(sequence: NumberSequence, time: number)
 	end
 end
 
+local function mapNumberSequence(sequence: NumberSequence)
+	local keypoints = {}
+	for _, keypoint in ipairs(sequence.Keypoints) do
+		if keypoint.Envelope > 0 then
+			local offset = math.random(-keypoint.Envelope, keypoint.Envelope)
+			local new = NumberSequenceKeypoint.new(keypoint.Time, keypoint.Value + offset)
+			table.insert(keypoints, new)
+			
+			continue
+		end
+		
+		table.insert(keypoints, keypoint)
+	end
+	return NumberSequence.new(keypoints)
+end
+
 local function evalDirection(direction: Types.EmissionDirection)
 	if direction == "Top" then
 		return Vector2.new(0, -1)
@@ -157,22 +173,34 @@ function Constructor.new(particleEmitter: Types.ParticleEmitter): Types.Particle
 		
 	}, Particle)
 	
-	local x, y = particleEmitter.Parent.AbsoluteSize.X, particleEmitter.Parent.AbsoluteSize.Y
-	local position = UDim2.fromOffset(math.random() * x, math.random() * y)
-	local size = initNumberSequence(particleEmitter.Size)
-	self._position = position
+	if typeof(self.Size) == "NumberSequence" then
+		self.Size = mapNumberSequence(particleEmitter.Size)
+	end
+	
+	if typeof(self.Transparency) == "NumberSequence" then
+		self.Transparency = mapNumberSequence(particleEmitter.Transparency)
+	end
+	
+	local position, size do
+		local root = particleEmitter.Parent
+		local x, y = root.AbsoluteSize.X, root.AbsoluteSize.Y
+		position = UDim2.fromOffset(math.random() * x, math.random() * y)
+		size = initNumberSequence(self.Size)
+	end
 	
 	local label = Instance.new("ImageLabel")
 	label.Name = "Particle"
 	label.AnchorPoint = Vector2.one / 2
 	label.BackgroundTransparency = 1
 	label.Position = position
-	label.Rotation = initNumberRange(particleEmitter.Rotation)
+	label.Rotation = initNumberRange(self.Rotation)
 	label.Size = UDim2.fromOffset(size, size)
-	label.ZIndex = particleEmitter.ZOffset or 1
-	label.Image = particleEmitter.Texture
-	label.ImageColor3 = initColorSequence(particleEmitter.Color)
+	label.ZIndex = self.ZOffset or 1
+	label.Image = self.Texture
+	label.ImageTransparency = initNumberSequence(self.Transparency)
+	label.ImageColor3 = initColorSequence(self.Color)
 	label.Parent = particleEmitter.Parent
+	self._position = position
 	self._label = label
 	
 	return self
@@ -189,6 +217,7 @@ function Particle.Update(self: Types.Particle, dt: number): ()
 	local target do
 		local eval = evalDirection(self.EmissionDirection)
 		local theta = math.rad(self.SpreadAngle)
+		
 		local direction = Vector2.new(
 			eval.X * math.cos(theta) - eval.Y * math.sin(theta),
 			eval.X * math.sin(theta) + eval.Y * math.cos(theta)
@@ -198,6 +227,7 @@ function Particle.Update(self: Types.Particle, dt: number): ()
 	end
 	
 	do
+		local transparency = self.Transparency
 		local offset = self._position + target
 		local color = self.Color
 		local size = self.Size
@@ -210,8 +240,13 @@ function Particle.Update(self: Types.Particle, dt: number): ()
 			size = evalNumberSequence(self.Size, alpha)
 		end
 		
+		if typeof(self.Transparency) == "NumberSequence" then
+			transparency = evalNumberSequence(self.Transparency, alpha)
+		end
+		
 		self._label.Size = UDim2.fromOffset(size, size)
 		self._label.Position = lerpUDim2(self._position, offset, alpha)
+		self._label.ImageTransparency = transparency
 		self._label.ImageColor3 = color
 		self._label.Rotation += self.RotSpeed * dt
 	end
