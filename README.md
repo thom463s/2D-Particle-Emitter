@@ -10,7 +10,7 @@ Size | `NumberSequence`, `number` | Determines the offset size of all active par
 Texture | `string` | Determines the image rendered on particles.
 Transparency | `NumberSequence`, `number` | Determines the transparency of all active particles over their individual lifetimes.
 ZOffset | `number` | Determines the order in which a GuiObject renders relative to others. In other words, ZIndex.
-EmissionDirection | `string` | Determines the direction in which the particle should emit from. To set a direction, write one of the following directions: `Top` \| `Bottom` \| `Left` \| `Right`
+EmissionDirection | `string` | Determines the direction in which the particle should emit from. To set a direction, input one of the following strings: `Top` \| `Bottom` \| `Left` \| `Right`
 Enabled | `boolean` | Determines if particles emit from the emitter.
 Lifetime | `NumberRange`, `number` | Defines the maximum and minimum ages for newly emitted particles.
 Rate | `number` | Determines how many particles are emitted over the course of a second while the emitter is Enabled.
