@@ -18,6 +18,7 @@ Rotation | `NumberRange`, `number` | Determines the range of rotations in degree
 RotSpeed | `NumberRange`, `number` | Determines a random range of angular speeds for newly emitted particles, measured in degrees per second.
 Speed | `NumberRange`, `number` | Determines a random range of velocities (minimum to maximum) at which new particles will emit, measured in pixels (offset) per second.
 SpreadAngle | `number` | Determines the random angles at which a particle may be emitted.
+Parent | `Instance` | Where the individual particle image labels should be parented to, preferably a `CanvasGroup` for proper clipping.
 
 ## Example
 ```luau
