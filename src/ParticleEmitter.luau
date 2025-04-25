@@ -1,5 +1,5 @@
 -- @Author: thom463s
--- @Edited: 4/25/2025 @ 5:23 PM
+-- @Edited: 4/25/2025 @ 8:13 PM
 
 --------------------------------------------------------------------------------------------------
 -- Dependencies
@@ -27,8 +27,8 @@ function Constructor.new(): Types.ParticleEmitter
 		Size = 32,
 		Texture = "rbxasset://textures/particles/sparkles_main.dds",
 		Transparency = 0,
-		ZOffset = 0,
-
+		ZOffset = 1,
+		
 		EmissionDirection = "Top",
 		Enabled = true,
 		Lifetime = NumberRange.new(5, 10),
@@ -54,7 +54,7 @@ function Constructor.new(): Types.ParticleEmitter
 	}, ParticleEmitter)
 	
 	self._connection = RunService.RenderStepped:Connect(function(dt: number)
-		if self.Enabled then
+		if self.Enabled and self.Parent then
 			self._elapsed += dt
 			if self._elapsed >= (1 / self.Rate) then
 				self._elapsed = 0
