@@ -1,7 +1,7 @@
 # 2D-Particle-Emitter
 A 2D particle emitter solution that aims to mimic the Roblox particle emitters.
 
-Example Usage:
+## Usage
 ```luau
 local ParticleEmitter = require(...)
 local emitter = ParticleEmitter.new()
