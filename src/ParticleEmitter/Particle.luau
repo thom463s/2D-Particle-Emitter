@@ -1,5 +1,5 @@
 -- @Author: thom463s
--- @Edited: 4/25/2025 @ 8:13 PM
+-- @Edited: 4/27/2025 @ 9:58 PM
 
 --------------------------------------------------------------------------------------------------
 -- Dependencies
@@ -10,23 +10,23 @@ local Types = require(Root.Types)
 --------------------------------------------------------------------------------------------------
 -- Private Methods
 
-local function initNumberRange(input: NumberRange | number)
+local function initNumberRange(self: Types.ParticleEmitter, input: NumberRange | number)
 	if typeof(input) == "NumberRange" then
-		return math.random(input.Min, input.Max)
+		return self._random:NextNumber(input.Min, input.Max)
 	elseif typeof(input) == "number" then
 		return input
 	end
 	return 0
 end
 
-local function initNumberSequence(input: NumberSequence | number)
+local function initNumberSequence(self: Types.ParticleEmitter, input: NumberSequence | number)
 	if typeof(input) == "NumberSequence" then
 		local keypoint = input.Keypoints[1]
 		local envelope = keypoint.Envelope
 		local size = keypoint.Value
 		
 		if envelope > 0 then
-			size += math.random(-envelope, envelope)
+			size += self._random:NextNumber(-envelope, envelope)
 		end
 		
 		return size
@@ -36,7 +36,7 @@ local function initNumberSequence(input: NumberSequence | number)
 	return 0
 end
 
-local function initColorSequence(input: ColorSequence | Color3)
+local function initColorSequence(self: Types.ParticleEmitter, input: ColorSequence | Color3)
 	if typeof(input) == "ColorSequence" then
 		local keypoint = input.Keypoints[1]
 		return keypoint.Value
@@ -84,11 +84,11 @@ local function evalNumberSequence(sequence: NumberSequence, time: number)
 	end
 end
 
-local function mapNumberSequence(sequence: NumberSequence)
+local function mapNumberSequence(self: Types.ParticleEmitter, sequence: NumberSequence)
 	local keypoints = {}
 	for _, keypoint in ipairs(sequence.Keypoints) do
 		if keypoint.Envelope > 0 then
-			local offset = math.random(-keypoint.Envelope, keypoint.Envelope)
+			local offset = self._random:NextNumber(-keypoint.Envelope, keypoint.Envelope)
 			local new = NumberSequenceKeypoint.new(keypoint.Time, keypoint.Value + offset)
 			table.insert(keypoints, new)
 			
@@ -149,14 +149,18 @@ function Constructor.new(particleEmitter: Types.ParticleEmitter): Types.Particle
 		Size = particleEmitter.Size,
 		Texture = particleEmitter.Texture,
 		Transparency = particleEmitter.Transparency,
-		ZOffset = particleEmitter.ZOffset,
-
+		ZOffset = initNumberRange(particleEmitter, particleEmitter.ZOffset),
+		
 		EmissionDirection = particleEmitter.EmissionDirection,
-		Lifetime = initNumberRange(particleEmitter.Lifetime),
-		Rotation = initNumberRange(particleEmitter.Rotation),
-		RotSpeed = initNumberRange(particleEmitter.RotSpeed),
-		Speed = initNumberRange(particleEmitter.Speed),
-		SpreadAngle = math.random(-particleEmitter.SpreadAngle, particleEmitter.SpreadAngle),
+		Lifetime = initNumberRange(particleEmitter, particleEmitter.Lifetime),
+		Rotation = initNumberRange(particleEmitter, particleEmitter.Rotation),
+		RotSpeed = initNumberRange(particleEmitter, particleEmitter.RotSpeed),
+		Speed = initNumberRange(particleEmitter, particleEmitter.Speed),
+		
+		SpreadAngle = particleEmitter._random:NextNumber(
+			-particleEmitter.SpreadAngle,
+			particleEmitter.SpreadAngle
+		),
 		
 		Shape = particleEmitter.Shape,
 		ShapeInOut = particleEmitter.ShapeInOut,
@@ -174,18 +178,18 @@ function Constructor.new(particleEmitter: Types.ParticleEmitter): Types.Particle
 	}, Particle)
 	
 	if typeof(self.Size) == "NumberSequence" then
-		self.Size = mapNumberSequence(particleEmitter.Size)
+		self.Size = mapNumberSequence(particleEmitter, particleEmitter.Size)
 	end
 	
 	if typeof(self.Transparency) == "NumberSequence" then
-		self.Transparency = mapNumberSequence(particleEmitter.Transparency)
+		self.Transparency = mapNumberSequence(particleEmitter, particleEmitter.Transparency)
 	end
 	
 	local position, size do
 		local root = particleEmitter.Parent
 		local x, y = root.AbsoluteSize.X, root.AbsoluteSize.Y
 		position = UDim2.fromOffset(math.random() * x, math.random() * y)
-		size = initNumberSequence(self.Size)
+		size = initNumberSequence(particleEmitter, self.Size)
 	end
 	
 	local label = Instance.new("ImageLabel")
@@ -193,12 +197,12 @@ function Constructor.new(particleEmitter: Types.ParticleEmitter): Types.Particle
 	label.AnchorPoint = Vector2.one / 2
 	label.BackgroundTransparency = 1
 	label.Position = position
-	label.Rotation = initNumberRange(self.Rotation)
+	label.Rotation = initNumberRange(particleEmitter, self.Rotation)
 	label.Size = UDim2.fromOffset(size, size)
 	label.ZIndex = self.ZOffset or 1
 	label.Image = self.Texture
-	label.ImageTransparency = initNumberSequence(self.Transparency)
-	label.ImageColor3 = initColorSequence(self.Color)
+	label.ImageTransparency = initNumberSequence(particleEmitter, self.Transparency)
+	label.ImageColor3 = initColorSequence(particleEmitter, self.Color)
 	label.Parent = particleEmitter.Parent
 	self._position = position
 	self._label = label
