@@ -1,5 +1,5 @@
 -- @Author: thom463s
--- @Edited: 4/25/2025 @ 8:13 PM
+-- @Edited: 4/27/2025 @ 9:58 PM
 
 --------------------------------------------------------------------------------------------------
 -- Dependencies
@@ -8,6 +8,22 @@ local RunService = game:GetService("RunService")
 
 local Particle = require(script.Particle)
 local Types = require(script.Types)
+
+--------------------------------------------------------------------------------------------------
+-- Private Methods
+
+local function directionToString(enum: Enum.NormalId)
+	local lookup = {
+		[Enum.NormalId.Top] = "Top",
+		[Enum.NormalId.Bottom] = "Bottom",
+		[Enum.NormalId.Left] = "Left",
+		[Enum.NormalId.Right] = "Right",
+		[Enum.NormalId.Front] = "Top", -- UI has no z coordinate; default to Top
+		[Enum.NormalId.Back] = "Top"   -- UI has no z coordinate; default to Top
+	}
+	
+	return lookup[enum]
+end
 
 --------------------------------------------------------------------------------------------------
 -- Class
@@ -50,6 +66,7 @@ function Constructor.new(): Types.ParticleEmitter
 		_particles = {},
 		_connection = nil,
 		_elapsed = 0,
+		_random = nil
 		
 	}, ParticleEmitter)
 	
@@ -63,18 +80,45 @@ function Constructor.new(): Types.ParticleEmitter
 		else
 			self._elapsed = 0
 		end
-		
+
 		for _, particle in ipairs(self._particles) do
 			if os.clock() - particle._started > particle.Lifetime then
 				local index = table.find(self._particles, particle)
 				table.remove(self._particles, index)
-				
+
 				particle:Destroy()
 				continue
 			end
 			particle:Update(dt)
 		end
 	end)
+	
+	self._random = Random.new(DateTime.now().UnixTimestampMillis + os.clock())
+	
+	return self
+end
+
+function Constructor.fromParticle(particleEmitter: ParticleEmitter): Types.ParticleEmitter
+	local self do
+		self = Constructor.new()
+		self.Color = particleEmitter.Color
+		self.Size = particleEmitter.Size
+		self.Texture = particleEmitter.Texture
+		self.Transparency = particleEmitter.Transparency
+		self.ZOffset = particleEmitter.ZOffset
+		self.EmissionDirection = directionToString(particleEmitter.EmissionDirection)
+		self.Enabled = particleEmitter.Enabled
+		self.Lifetime = particleEmitter.Lifetime
+		self.Rate = particleEmitter.Rate
+		self.Rotation = particleEmitter.Rotation
+		self.RotSpeed = particleEmitter.RotSpeed
+		self.Speed = particleEmitter.Speed
+		
+		self.SpreadAngle = math.max(
+			particleEmitter.SpreadAngle.X,
+			particleEmitter.SpreadAngle.Y
+		)
+	end
 	
 	return self
 end
