@@ -1,5 +1,5 @@
 -- @Author: thom463s
--- @Edited: 4/25/2025 @ 8:13 PM
+-- @Edited: 4/27/2025 @ 9:58 PM
 
 --------------------------------------------------------------------------------------------------
 -- Types
@@ -32,6 +32,7 @@ export type ParticleEmitter = {
 	_particles: {Particle},
 	_connection: RBXScriptConnection,
 	_elapsed: number,
+	_random: Random,
 	
 	Emit: (self: ParticleEmitter, particleCount: number?) -> (),
 	Destroy: (self: ParticleEmitter) -> ()
