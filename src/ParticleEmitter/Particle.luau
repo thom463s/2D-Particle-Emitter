@@ -1,5 +1,5 @@
 -- @Author: thom463s
--- @Edited: 4/27/2025 @ 9:58 PM
+-- @Edited: 10/13/2025 @ 4:56 PM
 
 --------------------------------------------------------------------------------------------------
 -- Dependencies
@@ -167,9 +167,11 @@ function Constructor.new(particleEmitter: Types.ParticleEmitter): Types.Particle
 		ShapeStyle = particleEmitter.ShapeStyle,
 
 		Acceleration = particleEmitter.Acceleration,
+		AspectRatio = particleEmitter.AspectRatio,
 
 		--------------- PRIVATE PROPERTIES --------------
-
+		
+		_currentAcceleration = Vector2.zero,
 		_particleEmitter = particleEmitter,
 		_started = os.clock(),
 		_position = nil,
@@ -204,6 +206,13 @@ function Constructor.new(particleEmitter: Types.ParticleEmitter): Types.Particle
 	label.ImageTransparency = initNumberSequence(particleEmitter, self.Transparency)
 	label.ImageColor3 = initColorSequence(particleEmitter, self.Color)
 	label.Parent = particleEmitter.Parent
+	
+	if self.AspectRatio then
+		local ratio = Instance.new("UIAspectRatioConstraint")
+		ratio.AspectRatio = self.AspectRatio
+		ratio.Parent = label
+	end
+	
 	self._position = position
 	self._label = label
 	
@@ -222,12 +231,15 @@ function Particle.Update(self: Types.Particle, dt: number): ()
 		local eval = evalDirection(self.EmissionDirection)
 		local theta = math.rad(self.SpreadAngle)
 		
+		self._currentAcceleration += self.Acceleration * dt
+		local acceleration = self._currentAcceleration
+		
 		local direction = Vector2.new(
 			eval.X * math.cos(theta) - eval.Y * math.sin(theta),
 			eval.X * math.sin(theta) + eval.Y * math.cos(theta)
 		)
 		
-		target = Vector2toUDim2(direction * (self.Speed * self.Lifetime))
+		target = Vector2toUDim2((direction * self.Speed * self.Lifetime) + acceleration)
 	end
 	
 	do
