@@ -1,5 +1,5 @@
 -- @Author: thom463s
--- @Edited: 4/27/2025 @ 9:58 PM
+-- @Edited: 10/11/2025 @ 3:41 PM
 
 --------------------------------------------------------------------------------------------------
 -- Dependencies
@@ -59,6 +59,7 @@ function Constructor.new(): Types.ParticleEmitter
 		ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
 
 		Acceleration = Vector2.zero,
+		AspectRatio = 1,
 		TimeScale = 1,
 		
 		--------------- PRIVATE PROPERTIES --------------
@@ -70,29 +71,6 @@ function Constructor.new(): Types.ParticleEmitter
 		
 	}, ParticleEmitter)
 	
-	self._connection = RunService.RenderStepped:Connect(function(dt: number)
-		if self.Enabled and self.Parent then
-			self._elapsed += dt
-			if self._elapsed >= (1 / self.Rate) then
-				self._elapsed = 0
-				self:Emit(1)
-			end
-		else
-			self._elapsed = 0
-		end
-
-		for _, particle in ipairs(self._particles) do
-			if os.clock() - particle._started > particle.Lifetime then
-				local index = table.find(self._particles, particle)
-				table.remove(self._particles, index)
-
-				particle:Destroy()
-				continue
-			end
-			particle:Update(dt)
-		end
-	end)
-	
 	self._random = Random.new(DateTime.now().UnixTimestampMillis + os.clock())
 	
 	return self
@@ -101,6 +79,7 @@ end
 function Constructor.fromParticle(particleEmitter: ParticleEmitter): Types.ParticleEmitter
 	local self do
 		self = Constructor.new()
+		
 		self.Color = particleEmitter.Color
 		self.Size = particleEmitter.Size
 		self.Texture = particleEmitter.Texture
@@ -128,6 +107,70 @@ end
 
 ParticleEmitter = {}
 ParticleEmitter.__index = ParticleEmitter
+
+function ParticleEmitter.BindToRenderStepped(self: ParticleEmitter): ()
+	if self._connection then
+		warn("This ParticleEmitter is already connected to a loop")
+		return
+	end
+	
+	self._connection = RunService.RenderStepped:Connect(function(...)
+		self:Update(...)
+	end)
+end
+
+function ParticleEmitter.BindToStepped(self: ParticleEmitter): ()
+	if self._connection then
+		warn("This ParticleEmitter is already connected to a loop")
+		return
+	end
+
+	self._connection = RunService.Stepped:Connect(function(t, ...)
+		self:Update(...)
+	end)
+end
+
+function ParticleEmitter.BindToHeartbeat(self: ParticleEmitter): ()
+	if self._connection then
+		warn("This ParticleEmitter is already connected to a loop")
+		return
+	end
+
+	self._connection = RunService.Heartbeat:Connect(function(...)
+		self:Update(...)
+	end)
+end
+
+function ParticleEmitter.Unbind(self: ParticleEmitter): ()
+	if not self._connection then
+		return
+	end
+	
+	self._connection:Disconnect()
+end
+
+function ParticleEmitter.Update(self: ParticleEmitter, deltaTime: number): ()
+	if self.Enabled and self.Parent then
+		self._elapsed += deltaTime
+		if self._elapsed >= (1 / self.Rate) then
+			self._elapsed = 0
+			self:Emit(1)
+		end
+	else
+		self._elapsed = 0
+	end
+
+	for _, particle in ipairs(self._particles) do
+		if os.clock() - particle._started > particle.Lifetime then
+			local index = table.find(self._particles, particle)
+			table.remove(self._particles, index)
+
+			particle:Destroy()
+			continue
+		end
+		particle:Update(deltaTime)
+	end
+end
 
 function ParticleEmitter.Emit(self: ParticleEmitter, particleCount: number?): ()
 	for i = 1, (particleCount or 10) do
