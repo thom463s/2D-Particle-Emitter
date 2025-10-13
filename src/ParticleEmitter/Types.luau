@@ -1,5 +1,5 @@
 -- @Author: thom463s
--- @Edited: 4/27/2025 @ 9:58 PM
+-- @Edited: 10/11/2025 @ 3:42 PM
 
 --------------------------------------------------------------------------------------------------
 -- Types
@@ -9,7 +9,7 @@ export type ParticleEmitter = {
 	Size: NumberSequence | number,
 	Texture: string,
 	Transparency: NumberSequence | number,
-	ZOffset: number,
+	ZOffset: NumberRange | number,
 
 	Parent: GuiBase2d,
 
@@ -28,6 +28,7 @@ export type ParticleEmitter = {
 
 	Acceleration: Vector2,
 	TimeScale: number,
+	AspectRatio: number,
 	
 	_particles: {Particle},
 	_connection: RBXScriptConnection,
@@ -68,6 +69,7 @@ export type Particle = {
 }
 
 export type EmissionDirection = "Top" | "Bottom" | "Left" | "Right"
+export type Loops = "RenderStepped" | "Stepped" | "Heartbeat"
 
 --------------------------------------------------------------------------------------------------
 -- Callback
