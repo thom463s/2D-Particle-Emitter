@@ -20,6 +20,7 @@ export type ParticleEmitter = {
 	Rotation: NumberRange | number,
 	RotSpeed: NumberRange | number,
 	Speed: NumberRange | number,
+	Drag: number,
 	SpreadAngle: number,
 
 	Shape: Enum.ParticleEmitterShape,

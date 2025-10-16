@@ -156,6 +156,7 @@ function Constructor.new(particleEmitter: Types.ParticleEmitter): Types.Particle
 		Rotation = initNumberRange(particleEmitter, particleEmitter.Rotation),
 		RotSpeed = initNumberRange(particleEmitter, particleEmitter.RotSpeed),
 		Speed = initNumberRange(particleEmitter, particleEmitter.Speed),
+		Drag = particleEmitter.Drag,
 		
 		SpreadAngle = particleEmitter._random:NextNumber(
 			-particleEmitter.SpreadAngle,
@@ -174,7 +175,9 @@ function Constructor.new(particleEmitter: Types.ParticleEmitter): Types.Particle
 		_currentAcceleration = Vector2.zero,
 		_particleEmitter = particleEmitter,
 		_started = os.clock(),
+		_currentSpeed = particleEmitter.Speed,
 		_position = nil,
+		_vec2Position = nil,
 		_label = nil
 		
 	}, Particle)
@@ -214,6 +217,7 @@ function Constructor.new(particleEmitter: Types.ParticleEmitter): Types.Particle
 	end
 	
 	self._position = position
+	self._vec2Position = Vector2.new(position.X.Offset,position.Y.Offset)
 	self._label = label
 	
 	return self
@@ -227,24 +231,24 @@ Particle.__index = Particle
 
 function Particle.Update(self: Types.Particle, dt: number): ()
 	local alpha = math.min(1, (os.clock() - self._started) / self.Lifetime)
-	local target do
+	do
 		local eval = evalDirection(self.EmissionDirection)
 		local theta = math.rad(self.SpreadAngle)
 		
 		self._currentAcceleration += self.Acceleration * dt
-		local acceleration = self._currentAcceleration
 		
 		local direction = Vector2.new(
 			eval.X * math.cos(theta) - eval.Y * math.sin(theta),
 			eval.X * math.sin(theta) + eval.Y * math.cos(theta)
 		)
-		
-		target = Vector2toUDim2((direction * self.Speed * self.Lifetime) + acceleration)
+		local decay = 0.5 ^ (dt / (1 / self.Drag))
+		self._currentSpeed *= decay
+		self._vec2Position += (direction * self._currentSpeed * dt) + (self._currentAcceleration * dt)
+		self._position = Vector2toUDim2(self._vec2Position)
 	end
 	
 	do
 		local transparency = self.Transparency
-		local offset = self._position + target
 		local color = self.Color
 		local size = self.Size
 		
@@ -261,7 +265,8 @@ function Particle.Update(self: Types.Particle, dt: number): ()
 		end
 		
 		self._label.Size = UDim2.fromOffset(size, size)
-		self._label.Position = lerpUDim2(self._position, offset, alpha)
+		self._label.Position = self._position
+		-- print(self._label.Position)
 		self._label.ImageTransparency = transparency
 		self._label.ImageColor3 = color
 		self._label.Rotation += self.RotSpeed * dt

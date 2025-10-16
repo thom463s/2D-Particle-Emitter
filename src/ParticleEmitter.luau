@@ -52,6 +52,7 @@ function Constructor.new(): Types.ParticleEmitter
 		Rotation = 0,
 		RotSpeed = 0,
 		Speed = 25,
+		Drag = 0,
 		SpreadAngle = 0,
 		
 		Shape = Enum.ParticleEmitterShape.Box,
