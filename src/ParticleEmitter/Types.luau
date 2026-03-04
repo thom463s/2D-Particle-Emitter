@@ -1,9 +1,3 @@
--- @Author: thom463s
--- @Edited: 10/11/2025 @ 3:42 PM
-
---------------------------------------------------------------------------------------------------
--- Types
-
 export type ParticleEmitter = {
 	Color: ColorSequence | Color3,
 	Size: NumberSequence | number,
@@ -27,14 +21,20 @@ export type ParticleEmitter = {
 	ShapeStyle: Enum.ParticleEmitterShapeStyle,
 
 	Acceleration: Vector2,
+	Drag: number,
 	TimeScale: number,
 	AspectRatio: number,
 	
+	_connection: RBXScriptConnection?,
 	_particles: {Particle},
-	_connection: RBXScriptConnection,
 	_elapsed: number,
-	_random: Random,
 	
+	Bind: (self: ParticleEmitter, loop: Loops) -> (),
+	BindToRenderStepped: (self: ParticleEmitter) -> (),
+	BindToHeartbeat: (self: ParticleEmitter) -> (),
+	BindToStepped: (self: ParticleEmitter) -> (),
+	Unbind: (self: ParticleEmitter) -> (),
+	Update: (self: ParticleEmitter, deltaTime: number) -> (),
 	Emit: (self: ParticleEmitter, particleCount: number?) -> (),
 	Destroy: (self: ParticleEmitter) -> ()
 }
@@ -57,11 +57,16 @@ export type Particle = {
 	ShapeInOut: Enum.ParticleEmitterShapeInOut,
 	ShapeStyle: Enum.ParticleEmitterShapeStyle,
 
-	Acceleration: number,
-
+	Acceleration: Vector2,
+	AspectRatio: number,
+	TimeScale: number,
+	Drag: number,
+	
+	_currentAcceleration: Vector2,
 	_particleEmitter: ParticleEmitter,
-	_started: number,
-	_position: UDim2,
+	_currentSpeed: number,
+	_position: Vector2,
+	_elapsed: number,
 	_label: ImageLabel,
 	
 	Update: (self: Particle, dt: number) -> (),
@@ -70,8 +75,5 @@ export type Particle = {
 
 export type EmissionDirection = "Top" | "Bottom" | "Left" | "Right"
 export type Loops = "RenderStepped" | "Stepped" | "Heartbeat"
-
---------------------------------------------------------------------------------------------------
--- Callback
 
 return nil
