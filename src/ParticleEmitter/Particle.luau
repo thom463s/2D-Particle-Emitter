@@ -1,63 +1,47 @@
--- @Author: thom463s
--- @Edited: 10/13/2025 @ 4:56 PM
-
---------------------------------------------------------------------------------------------------
--- Dependencies
-
 local Root = script.Parent
 local Types = require(Root.Types)
 
---------------------------------------------------------------------------------------------------
--- Private Methods
+local RANDOM = Random.new()
 
-local function initNumberRange(self: Types.ParticleEmitter, input: NumberRange | number)
-	if typeof(input) == "NumberRange" then
-		return self._random:NextNumber(input.Min, input.Max)
-	elseif typeof(input) == "number" then
-		return input
-	end
-	return 0
-end
-
-local function initNumberSequence(self: Types.ParticleEmitter, input: NumberSequence | number)
+local function resolveNumber(input: NumberSequence | NumberRange | number)
 	if typeof(input) == "NumberSequence" then
 		local keypoint = input.Keypoints[1]
-		local envelope = keypoint.Envelope
-		local size = keypoint.Value
+		return keypoint.Value
 		
-		if envelope > 0 then
-			size += self._random:NextNumber(-envelope, envelope)
-		end
+	elseif typeof(input) == "NumberRange" then
+		return RANDOM:NextNumber(input.Min, input.Max)
 		
-		return size
 	elseif typeof(input) == "number" then
 		return input
 	end
+	
 	return 0
 end
 
-local function initColorSequence(self: Types.ParticleEmitter, input: ColorSequence | Color3)
+local function resolveColor(input: ColorSequence | Color3)
 	if typeof(input) == "ColorSequence" then
 		local keypoint = input.Keypoints[1]
 		return keypoint.Value
+		
 	elseif typeof(input) == "Color3" then
 		return input
 	end
+	
 	return Color3.new()
 end
 
-local function evalColorSequence(sequence: ColorSequence, time: number)
-	if time <= 0 then
+local function evalColorSequence(sequence: ColorSequence, t: number)
+	if t <= 0 then
 		return sequence.Keypoints[1].Value
-	elseif time >= 1 then
+	elseif t >= 1 then
 		return sequence.Keypoints[#sequence.Keypoints].Value
 	end
 	
 	for i = 1, #sequence.Keypoints - 1 do
 		local thisKeypoint = sequence.Keypoints[i]
 		local nextKeypoint = sequence.Keypoints[i + 1]
-		if time >= thisKeypoint.Time and time < nextKeypoint.Time then
-			local alpha = (time - thisKeypoint.Time) / (nextKeypoint.Time - thisKeypoint.Time)
+		if t >= thisKeypoint.Time and t < nextKeypoint.Time then
+			local alpha = (t - thisKeypoint.Time) / (nextKeypoint.Time - thisKeypoint.Time)
 			return Color3.new(
 				(nextKeypoint.Value.R - thisKeypoint.Value.R) * alpha + thisKeypoint.Value.R,
 				(nextKeypoint.Value.G - thisKeypoint.Value.G) * alpha + thisKeypoint.Value.G,
@@ -65,30 +49,34 @@ local function evalColorSequence(sequence: ColorSequence, time: number)
 			)
 		end
 	end
+	
+	return sequence.Keypoints[#sequence.Keypoints].Value
 end
 
-local function evalNumberSequence(sequence: NumberSequence, time: number)
-	if time <= 0 then
+local function evalNumberSequence(sequence: NumberSequence, t: number)
+	if t <= 0 then
 		return sequence.Keypoints[1].Value
-	elseif time >= 1 then
+	elseif t >= 1 then
 		return sequence.Keypoints[#sequence.Keypoints].Value
 	end
 	
 	for i = 1, #sequence.Keypoints - 1 do
 		local currKeypoint = sequence.Keypoints[i]
 		local nextKeypoint = sequence.Keypoints[i + 1]
-		if time >= currKeypoint.Time and time < nextKeypoint.Time then
-			local alpha = (time - currKeypoint.Time) / (nextKeypoint.Time - currKeypoint.Time)
+		if t >= currKeypoint.Time and t < nextKeypoint.Time then
+			local alpha = (t - currKeypoint.Time) / (nextKeypoint.Time - currKeypoint.Time)
 			return currKeypoint.Value + (nextKeypoint.Value - currKeypoint.Value) * alpha
 		end
 	end
+	
+	return sequence.Keypoints[#sequence.Keypoints].Value
 end
 
-local function mapNumberSequence(self: Types.ParticleEmitter, sequence: NumberSequence)
+local function mapNumberSequence(sequence: NumberSequence)
 	local keypoints = {}
 	for _, keypoint in ipairs(sequence.Keypoints) do
 		if keypoint.Envelope > 0 then
-			local offset = self._random:NextNumber(-keypoint.Envelope, keypoint.Envelope)
+			local offset = RANDOM:NextNumber(-keypoint.Envelope, keypoint.Envelope)
 			local new = NumberSequenceKeypoint.new(keypoint.Time, keypoint.Value + offset)
 			table.insert(keypoints, new)
 			
@@ -97,185 +85,164 @@ local function mapNumberSequence(self: Types.ParticleEmitter, sequence: NumberSe
 		
 		table.insert(keypoints, keypoint)
 	end
+	
 	return NumberSequence.new(keypoints)
 end
 
 local function evalDirection(direction: Types.EmissionDirection)
-	if direction == "Top" then
-		return Vector2.new(0, -1)
-	elseif direction == "Bottom" then
-		return Vector2.new(0, 1)
-	elseif direction == "Left" then
-		return Vector2.new(-1, 0)
-	elseif direction == "Right" then
-		return Vector2.new(1, 0)
-	end
-	return Vector2.zero
+	return if direction == "Top" then -Vector2.yAxis
+		elseif direction == "Bottom" then Vector2.yAxis
+		elseif direction == "Left" then -Vector2.xAxis
+		elseif direction == "Right" then Vector2.xAxis
+		else Vector2.zero
 end
 
-local function lerp(a, b, t)
-	return a + (b - a) * t
-end
-
-local function lerpUDim2(a: UDim2, b: UDim2, t: number)
-	local axs, axo, ays, ayo = a.X.Scale, a.X.Offset, a.Y.Scale, a.Y.Offset
-	local bxs, bxo, bys, byo = b.X.Scale, b.X.Offset, b.Y.Scale, b.Y.Offset
-	
-	return UDim2.new(
-		lerp(axs, bxs, t), lerp(axo, bxo, t),
-		lerp(ays, bys, t), lerp(ayo, byo, t)
-	)
-end
-
-local function Vector2toUDim2(vec: Vector2)
-	return UDim2.fromOffset(vec.X, vec.Y)
-end
-
---------------------------------------------------------------------------------------------------
--- Class
-
-local Constructor = {}
-local Particle = nil
-
---------------------------------------------------------------------------------------------------
--- Public Constructors
-
-function Constructor.new(particleEmitter: Types.ParticleEmitter): Types.Particle
-	local self: Types.Particle = setmetatable({
-
-		--------------- PUBLIC PROPERTIES ---------------
-
-		Color = particleEmitter.Color,
-		Size = particleEmitter.Size,
-		Texture = particleEmitter.Texture,
-		Transparency = particleEmitter.Transparency,
-		ZOffset = initNumberRange(particleEmitter, particleEmitter.ZOffset),
-		
-		EmissionDirection = particleEmitter.EmissionDirection,
-		Lifetime = initNumberRange(particleEmitter, particleEmitter.Lifetime),
-		Rotation = initNumberRange(particleEmitter, particleEmitter.Rotation),
-		RotSpeed = initNumberRange(particleEmitter, particleEmitter.RotSpeed),
-		Speed = initNumberRange(particleEmitter, particleEmitter.Speed),
-		
-		SpreadAngle = particleEmitter._random:NextNumber(
-			-particleEmitter.SpreadAngle,
-			particleEmitter.SpreadAngle
-		),
-		
-		Shape = particleEmitter.Shape,
-		ShapeInOut = particleEmitter.ShapeInOut,
-		ShapeStyle = particleEmitter.ShapeStyle,
-
-		Acceleration = particleEmitter.Acceleration,
-		AspectRatio = particleEmitter.AspectRatio,
-
-		--------------- PRIVATE PROPERTIES --------------
-		
-		_currentAcceleration = Vector2.zero,
-		_particleEmitter = particleEmitter,
-		_started = os.clock(),
-		_position = nil,
-		_label = nil
-		
-	}, Particle)
+local function setupParticle(self: Types.Particle)
+	local particleEmitter = self._particleEmitter
 	
 	if typeof(self.Size) == "NumberSequence" then
-		self.Size = mapNumberSequence(particleEmitter, particleEmitter.Size)
+		self.Size = mapNumberSequence(particleEmitter.Size)
 	end
 	
 	if typeof(self.Transparency) == "NumberSequence" then
-		self.Transparency = mapNumberSequence(particleEmitter, particleEmitter.Transparency)
+		self.Transparency = mapNumberSequence(particleEmitter.Transparency)
 	end
 	
-	local position, size do
-		local root = particleEmitter.Parent
-		local x, y = root.AbsoluteSize.X, root.AbsoluteSize.Y
-		position = UDim2.fromOffset(math.random() * x, math.random() * y)
-		size = initNumberSequence(particleEmitter, self.Size)
-	end
+	local root = particleEmitter.Parent
+	local scale = resolveNumber(self.Size)
+	local color = resolveColor(self.Color)
+	local transparency = resolveNumber(self.Transparency)
 	
+	local position = UDim2.fromOffset(
+		RANDOM:NextNumber(0, root.AbsoluteSize.X),
+		RANDOM:NextNumber(0, root.AbsoluteSize.Y)
+	)
+
 	local label = Instance.new("ImageLabel")
 	label.Name = "Particle"
 	label.AnchorPoint = Vector2.one / 2
 	label.BackgroundTransparency = 1
 	label.Position = position
-	label.Rotation = initNumberRange(particleEmitter, self.Rotation)
-	label.Size = UDim2.fromOffset(size, size)
-	label.ZIndex = self.ZOffset or 1
+	label.Rotation = self.Rotation
+	label.Size = UDim2.fromOffset(scale, scale)
+	label.ZIndex = self.ZOffset
 	label.Image = self.Texture
-	label.ImageTransparency = initNumberSequence(particleEmitter, self.Transparency)
-	label.ImageColor3 = initColorSequence(particleEmitter, self.Color)
+	label.ImageTransparency = transparency
+	label.ImageColor3 = color
 	label.Parent = particleEmitter.Parent
-	
-	if self.AspectRatio then
-		local ratio = Instance.new("UIAspectRatioConstraint")
-		ratio.AspectRatio = self.AspectRatio
-		ratio.Parent = label
-	end
-	
-	self._position = position
+
+	local ratio = Instance.new("UIAspectRatioConstraint")
+	ratio.Name = "Ratio"
+	ratio.AspectRatio = self.AspectRatio
+	ratio.Parent = label
+
+	self._position = Vector2.new(position.X.Offset, position.Y.Offset)
 	self._label = label
+end
+
+local function updatePosition(self: Types.Particle, dt: number): ()
+	local base = evalDirection(self.EmissionDirection)
+	local theta = math.rad(self.SpreadAngle)
+
+	local direction = Vector2.new(
+		base.X * math.cos(theta) - base.Y * math.sin(theta),
+		base.X * math.sin(theta) + base.Y * math.cos(theta)
+	)
+
+	self._currentAcceleration += self.Acceleration * dt
+
+	if self.Drag > 0 then
+		local decay = 0.5 ^ (dt / (1 / self.Drag))
+		self._currentSpeed *= decay
+	end
+
+	self._position += (direction * self._currentSpeed * dt) + (self._currentAcceleration * dt)
+end
+
+local function updateVisual(self: Types.Particle, dt: number): ()
+	local alpha = math.min(1, self._elapsed / self.Lifetime)
+	local transparency = self.Transparency
+	local color = self.Color
+	local size = self.Size
+
+	if typeof(self.Color) == "ColorSequence" then
+		color = evalColorSequence(self.Color, alpha)
+	end
+
+	if typeof(self.Size) == "NumberSequence" then
+		size = evalNumberSequence(self.Size, alpha)
+	end
+
+	if typeof(self.Transparency) == "NumberSequence" then
+		transparency = evalNumberSequence(self.Transparency, alpha)
+	end
+
+	self._label.Size = UDim2.fromOffset(size, size)
+	self._label.Position = UDim2.fromOffset(self._position.X, self._position.Y)
+	self._label.ImageTransparency = transparency
+	self._label.ImageColor3 = color
+	self._label.Rotation += self.RotSpeed * dt
+end
+
+local Constructor = {}
+local Particle = {}
+Particle.__index = Particle
+
+function Constructor.new(particleEmitter: Types.ParticleEmitter): Types.Particle
+	local self: Types.Particle = {}
+	setmetatable(self, Particle)
+	
+	self.Color = particleEmitter.Color
+	self.Size = particleEmitter.Size
+	self.Texture = particleEmitter.Texture
+	self.Transparency = particleEmitter.Transparency
+	self.ZOffset = resolveNumber(particleEmitter.ZOffset)
+	
+	self.EmissionDirection = particleEmitter.EmissionDirection
+	self.Lifetime = resolveNumber(particleEmitter.Lifetime)
+	self.Rotation = resolveNumber(particleEmitter.Rotation)
+	self.RotSpeed = resolveNumber(particleEmitter.RotSpeed)
+	self.Speed = resolveNumber(particleEmitter.Speed)
+	
+	self.SpreadAngle = RANDOM:NextNumber(
+		-particleEmitter.SpreadAngle,
+		particleEmitter.SpreadAngle
+	)
+	
+	self.Shape = particleEmitter.Shape
+	self.ShapeInOut = particleEmitter.ShapeInOut
+	self.ShapeStyle = particleEmitter.ShapeStyle
+	
+	self.Acceleration = particleEmitter.Acceleration
+	self.AspectRatio = particleEmitter.AspectRatio
+	self.TimeScale = particleEmitter.TimeScale
+	self.Drag = particleEmitter.Drag
+	
+	self._currentAcceleration = Vector2.zero
+	self._particleEmitter = particleEmitter
+	self._currentSpeed = self.Speed
+	self._position = nil
+	self._elapsed = 0
+	self._label = nil
+	
+	setupParticle(self)
 	
 	return self
 end
 
---------------------------------------------------------------------------------------------------
--- Public Methods
-
-Particle = {}
-Particle.__index = Particle
-
 function Particle.Update(self: Types.Particle, dt: number): ()
-	local alpha = math.min(1, (os.clock() - self._started) / self.Lifetime)
-	local target do
-		local eval = evalDirection(self.EmissionDirection)
-		local theta = math.rad(self.SpreadAngle)
-		
-		self._currentAcceleration += self.Acceleration * dt
-		local acceleration = self._currentAcceleration
-		
-		local direction = Vector2.new(
-			eval.X * math.cos(theta) - eval.Y * math.sin(theta),
-			eval.X * math.sin(theta) + eval.Y * math.cos(theta)
-		)
-		
-		target = Vector2toUDim2((direction * self.Speed * self.Lifetime) + acceleration)
-	end
+	dt = dt * self.TimeScale
+	self._elapsed += dt
 	
-	do
-		local transparency = self.Transparency
-		local offset = self._position + target
-		local color = self.Color
-		local size = self.Size
-		
-		if typeof(self.Color) == "ColorSequence" then
-			color = evalColorSequence(self.Color, alpha)
-		end
-		
-		if typeof(self.Size) == "NumberSequence" then
-			size = evalNumberSequence(self.Size, alpha)
-		end
-		
-		if typeof(self.Transparency) == "NumberSequence" then
-			transparency = evalNumberSequence(self.Transparency, alpha)
-		end
-		
-		self._label.Size = UDim2.fromOffset(size, size)
-		self._label.Position = lerpUDim2(self._position, offset, alpha)
-		self._label.ImageTransparency = transparency
-		self._label.ImageColor3 = color
-		self._label.Rotation += self.RotSpeed * dt
-	end
-	
-	return true
+	updatePosition(self, dt)
+	updateVisual(self, dt)
 end
 
 function Particle.Destroy(self: Types.Particle): ()
 	self._label:Destroy()
+	
+	table.clear(self)
 	setmetatable(self, nil)
 end
-
---------------------------------------------------------------------------------------------------
--- Callback
 
 return Constructor
